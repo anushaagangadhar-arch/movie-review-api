@@ -85,7 +85,7 @@ def home():
 def get_movies(
     skip: int = Query(default=0, ge=0),
     limit: int =Query(default=10, ge=1, le=100),
-    sort_order: str = Query(default="asc",patterm="^(asc|desc)$"),
+    sort_order: str = Query(default="asc",pattern="^(asc|desc)$"),
     db: Session = Depends(get_db)
 ):
     query = db.query(MovieDB) 
