@@ -120,7 +120,6 @@ def create_movie(movie: Movie, db: Session = Depends(get_db)):
     )
 
     if existing_movie is not None:
-        print("EXISTING MOVIE:", existing_movie.title, existing_movie.year)
         raise HTTPException(
             status_code=409,
             detail="This movie already exists"
@@ -137,7 +136,6 @@ def create_movie(movie: Movie, db: Session = Depends(get_db)):
     db.refresh(new_movie)
 
     return new_movie
-
 # Search movies by title
 # Search movies by title with pagination and sorting
 @app.get("/movies/search", response_model=list[MovieResponse])
@@ -255,26 +253,6 @@ def update_movie(
 
     return existing_movie
 
-# Delete a movie
-@app.delete("/movies/{movie_id}")
-def delete_movie(movie_id: int, db: Session = Depends(get_db)):
-    movie = (
-        db.query(MovieDB)
-        .filter(MovieDB.id == movie_id)
-        .first()
-    )
-
-    if movie is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Movie with ID {movie_id} not found"
-        )
-
-    db.delete(movie)
-    db.commit()
-
-    return {"message": "Movie deleted successfully"}
-
 
 # Get movies by release year
 @app.get("/movies/year/{year}", response_model=list[MovieResponse])
@@ -335,70 +313,6 @@ def get_movie(movie_id: int, db: Session = Depends(get_db)):
             status_code=404,
             detail="Movie not found"
         )
-
-    return movie
-
-
-# CREATE: Add a new movie
-@app.post(
-    "/movies",
-    response_model=MovieResponse,
-    status_code=201
-)
-def create_movie(movie: Movie, db: Session = Depends(get_db)):
-
-    existing_movie = (
-        db.query(MovieDB)
-        .filter(
-            MovieDB.title.ilike(movie.title.strip()),
-            MovieDB.year == movie.year
-        )
-        .first()
-    )
-
-    if existing_movie is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="This movie already exists"
-        )
-    new_movie = MovieDB(
-        title=movie.title,
-        year=movie.year,
-        genre=movie.genre
-    )
-
-    db.add(new_movie)
-    db.commit()
-    db.refresh(new_movie)
-
-    return new_movie
-
-
-# UPDATE: Update an existing movie
-@app.put("/movies/{movie_id}", response_model=MovieResponse)
-def update_movie(
-    movie_id: int,
-    movie_data: Movie,
-    db: Session = Depends(get_db)
-):
-    movie = (
-        db.query(MovieDB)
-        .filter(MovieDB.id == movie_id)
-        .first()
-    )
-
-    if movie is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Movie with ID {movie_id} not found"
-        )
-
-    movie.title = movie_data.title
-    movie.year = movie_data.year
-    movie.genre = movie_data.genre
-
-    db.commit()
-    db.refresh(movie)
 
     return movie
 
