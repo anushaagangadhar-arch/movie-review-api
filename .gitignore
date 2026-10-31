@@ -10,7 +10,7 @@ venv/
 
 Python cache files
 
-pycache/
+__pycache__/
 *.py[cod]
 
 Pytest cache
