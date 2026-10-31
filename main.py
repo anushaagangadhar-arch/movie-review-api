@@ -331,6 +331,17 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
             status_code=404,
             detail="Movie not found"
         )
+    existing_reviews = (
+        db.query(ReviewDB)
+        .filter(ReviewDB.movie_id == movie_id)
+        .first()
+    )
+
+    if existing_reviews is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete this movie because it has existing reviews"
+        )
 
     db.delete(movie)
     db.commit()
