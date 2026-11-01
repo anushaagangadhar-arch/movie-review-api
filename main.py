@@ -1,32 +1,14 @@
 from fastapi import FastAPI,Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import Base,engine, SessionLocal
+from database import get_db
+from models import MovieDB, ReviewDB
 
 app = FastAPI(title="Movie Review API")
 
-
-# PostgreSQL movies table
-class MovieDB(Base):
-    __tablename__ = "movies"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
-    year = Column(Integer, nullable=False)
-    genre = Column(String(100), nullable=False)
-
-# Database model for reviews
-class ReviewDB(Base):
-    __tablename__ = "reviews"
-
-    id = Column(Integer, primary_key=True, index=True)
-    movie_id = Column(Integer,ForeignKey("movies.id"), nullable=False)
-    rating = Column(Integer, nullable=False)
-    comment = Column(String(500), nullable=False)
-
-Base.metadata.create_all(bind=engine)
 
 
 
