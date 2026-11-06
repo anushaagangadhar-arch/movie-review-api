@@ -1,126 +1,186 @@
 Movie Review API
 
-A RESTful backend API built using Python, FastAPI, PostgreSQL, and SQLAlchemy to manage movies and their reviews.
+A backend REST API for managing movies, users, and movie reviews.
 
-Live Project
-
-- Live API: https://movie-review-api-88ke.onrender.com
-- Swagger API Documentation: https://movie-review-api-88ke.onrender.com/docs
-- GitHub Repository: https://github.com/anushaagangadhar-arch/movie-review-api
+Built using FastAPI, PostgreSQL, SQLAlchemy, JWT authentication, and Alembic.
 
 Features
 
-Movie Management
-
-- Create, view, update, and delete movies
-- Prevent duplicate movie entries
+- User registration
+- Secure password hashing
+- User login with JWT authentication
+- Protected API endpoints
+- Movie CRUD operations
+- Prevent duplicate movies
 - Search movies by title
-- Filter movies by release year and genre
-- Pagination and sorting
+- Filter movies by release year
+- Filter movies by genre
+- Pagination
+- Sorting
+- Create, read, update, and delete reviews
+- Movie rating calculation
+- Movie details with average rating and review count
+- Input validation
+- Proper HTTP error handling
+- Automated API tests
+- PostgreSQL database
+- Alembic database migrations
+- Swagger API documentation
+- Deployed using Render
 
-Review Management
-
-- Create, view, update, and delete reviews
-- Validate review ratings and movie details
-- Calculate total reviews and average ratings
-- Prevent deletion of movies that have existing reviews
-
-Testing
-
-- Automated testing using pytest
-- 57 tests passed in the latest full test run
-
-Technologies Used
+Technologies
 
 - Python
 - FastAPI
 - PostgreSQL
 - SQLAlchemy
 - Pydantic
-- Pytest
-- Uvicorn
-- Git and GitHub
+- JWT
+- pwdlib
+- Alembic
+- pytest
 - Render
+- GitHub
 
-Project Structure
+API Endpoints
 
-movie-review-api/
-├── .venv/
-├── main.py
-├── database.py
-├── test_main.py
-├── requirements.txt
-├── .gitignore
-└── README.md
+Authentication
 
-Installation and Setup
+Method| Endpoint| Description
+POST| "/register"| Register a new user
+POST| "/login"| Login and receive JWT token
 
-1. Clone the repository
+Movies
+
+Method| Endpoint| Description
+GET| "/movies"| Get movies with pagination and sorting
+POST| "/movies"| Create a movie
+GET| "/movies/{movie_id}"| Get a movie
+PUT| "/movies/{movie_id}"| Update a movie
+DELETE| "/movies/{movie_id}"| Delete a movie
+GET| "/movies/search"| Search movies by title
+GET| "/movies/year/{year}"| Filter movies by year
+GET| "/movies/genre/{genre}"| Filter movies by genre
+GET| "/movies/{movie_id}/rating"| Get movie rating
+GET| "/movies/{movie_id}/details"| Get movie details and rating
+
+Reviews
+
+Method| Endpoint| Description
+POST| "/reviews"| Create a review
+GET| "/reviews"| Get reviews
+GET| "/reviews/{review_id}"| Get one review
+PUT| "/reviews/{review_id}"| Update a review
+DELETE| "/reviews/{review_id}"| Delete a review
+
+Authentication
+
+Protected endpoints require a JWT access token.
+
+1. Register using "/register".
+2. Login using "/login".
+3. Copy the returned "access_token".
+4. Click Authorize in Swagger.
+5. Enter the token.
+6. Access protected endpoints.
+
+Run Locally
+
+Clone the repository and enter the project directory:
 
 git clone https://github.com/anushaagangadhar-arch/movie-review-api.git
 cd movie-review-api
 
-2. Create a virtual environment
+Create and activate a virtual environment:
 
 python -m venv .venv
 
-3. Activate the virtual environment
-
 Windows PowerShell:
 
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 
-4. Install dependencies
+Install dependencies:
 
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 
-5. Configure environment variables
+Create a ".env" file and configure:
 
-Create a ".env" file in the project root directory.
+DATABASE_URL=your_postgresql_database_url
+SECRET_KEY=your_secret_key
 
-Add your PostgreSQL connection URL:
-
-DATABASE_URL=your_postgresql_connection_url
-
-Replace the placeholder with your own database connection URL.
-
-Security: Never upload your ".env" file or database credentials to GitHub.
-
-6. Start the API
+Run the API:
 
 python -m uvicorn main:app --reload
 
-7. Open API documentation
-
-Visit:
+Open Swagger:
 
 http://127.0.0.1:8000/docs
 
-Running Tests
+Run Tests
 
-Run the automated test suite:
+Run:
 
-python -m pytest
+pytest -q
 
-Latest full test result: 57 passed.
+Current test result:
+
+5 passed
+
+Database Migrations
+
+Alembic is used for database migrations.
+
+Check the current migration:
+
+alembic current
+
+Apply migrations:
+
+alembic upgrade head
 
 Deployment
 
-The API is deployed using Render.
+The API is deployed using Render with a PostgreSQL database.
 
-Live documentation:
+The application uses environment variables for sensitive configuration such as:
 
-https://movie-review-api-88ke.onrender.com/docs
+- "DATABASE_URL"
+- "SECRET_KEY"
 
-Future Improvements
+Sensitive values are not stored in GitHub.
 
-- Database migrations using Alembic
-- User registration and login
-- JWT authentication and authorization
-- Role-based access control
-- Improved logging and monitoring
-- Additional automated integration tests
+Project Structure
 
-Author
+movie-review-api/
+│
+├── main.py
+├── database.py
+├── models.py
+├── schemas.py
+├── security.py
+├── init_db.py
+├── test_main.py
+├── requirements.txt
+├── alembic.ini
+├── migration/
+├── .env
+└── .gitignore
 
-Backend Development Projects
+Learning Outcomes
+
+This project demonstrates practical backend development concepts including:
+
+- REST API development
+- Authentication and authorization
+- Password security
+- JWT tokens
+- Database design
+- SQLAlchemy ORM
+- PostgreSQL
+- Data validation
+- Pagination and sorting
+- Error handling
+- Automated testing
+- Database migrations
+- Cloud deployment
+- Git and GitHub
