@@ -9,6 +9,12 @@ def test_home():
     assert response.status_code == 200
 
 
+def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+
+
 def test_movies_requires_login():
     response = client.get("/movies")
     assert response.status_code == 401
