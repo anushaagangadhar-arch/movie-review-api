@@ -5,9 +5,189 @@ from sqlalchemy.orm import Session
 
 from database import Base,engine, SessionLocal
 from database import get_db
-from models import MovieDB, ReviewDB
+from models import MovieDB, ReviewDB,UserDB
+from schemas import UserCreate, UserLogin, UserResponse
+from security import hash_password, verify_password,create_access_token
+from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
+from security import decode_access_token
 
 app = FastAPI(title="Movie Review API")
+@app.post("/register", response_model=UserResponse, status_code=201)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+
+    # Check whether the email is already registered
+    existing_user = db.query(UserDB).filter(
+        UserDB.email == user.email
+    ).first()
+
+
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email is already registered"
+        )
+
+    # Check whether the username is already taken
+    existing_username = db.query(UserDB).filter(
+        UserDB.username == user.username
+    ).first()
+
+    if existing_username:
+        raise HTTPException(
+            status_code=409,
+            detail="Username is already taken"
+        )
+
+    # Hash the password before storing it
+    hashed_password = hash_password(user.password)
+
+    new_user = UserDB(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+
+@app.post("/login")
+def login_user(user: UserLogin, db: Session = Depends(get_db)):
+
+    # Find the user by email
+    existing_user = db.query(UserDB).filter(
+    UserDB.email.ilike(user.email.strip())
+).first()
+
+    # Check whether the user exists
+    if not existing_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    print("USER FOUND:", existing_user.email)
+
+    password_is_valid = verify_password(
+        user.password,
+        existing_user.hashed_password
+    )
+    print("PASSWORD CHECK:", password_is_valid)
+
+    if not password_is_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    # Generate JWT access token
+    access_token = create_access_token(
+        data={"sub": str(existing_user.id)}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+bearer_scheme = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token payload"
+        )
+
+    current_user = db.query(UserDB).filter(
+        UserDB.id == int(user_id)
+    ).first()
+
+    if current_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return current_user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    current_user = db.query(UserDB).filter(
+        UserDB.id == int(user_id)
+    ).first()
+
+    if current_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return current_user
+    # Check whether the username is already taken
+    existing_username = db.query(UserDB).filter(
+        UserDB.username == user.username
+    ).first()
+
+    if existing_username:
+        raise HTTPException(
+            status_code=409,
+            detail="Username is already taken"
+        )
+
+    # Hash the password before storing it
+    hashed_password = hash_password(user.password)
+
+    new_user = UserDB(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
 
 
 
@@ -66,13 +246,14 @@ def home():
 @app.get("/movies", response_model=list[MovieResponse])
 def get_movies(
     skip: int = Query(default=0, ge=0),
-    limit: int =Query(default=10, ge=1, le=100),
-    sort_order: str = Query(default="asc",pattern="^(asc|desc)$"),
-    db: Session = Depends(get_db)
+    limit: int = Query(default=10, ge=1, le=100),
+    sort_order: str = Query(default="asc", pattern="^(asc|desc)$"),
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
 ):
-    query = db.query(MovieDB) 
+    query = db.query(MovieDB)
 
-    if sort_order =="desc":
+    if sort_order == "desc":
         query = query.order_by(MovieDB.year.desc())
     else:
         query = query.order_by(MovieDB.year.asc())
@@ -91,7 +272,11 @@ def get_movies(
     return movies
 # Create a movie and prevent duplicates
 @app.post("/movies", response_model=MovieResponse, status_code=201)
-def create_movie(movie: Movie, db: Session = Depends(get_db)):
+def create_movie(
+    movie: Movie,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     existing_movie = (
         db.query(MovieDB)
         .filter(
@@ -164,15 +349,6 @@ def get_movies_by_year(
     movies = query.offset(skip).limit(limit).all()
 
     return movies
-# Filter movies by genre
-@app.get("/movies/genre/{genre}", response_model=list[MovieResponse])
-def get_movies_by_genre(genre: str, db: Session = Depends(get_db)):
-    return (
-        db.query(MovieDB)
-        .filter(MovieDB.genre.ilike(genre.strip()))
-        .order_by(MovieDB.id.asc())
-        .all()
-    )
 
 # Get one movie by ID
 @app.get("/movies/{movie_id}", response_model=MovieResponse)
@@ -196,7 +372,8 @@ def get_movie(movie_id: int, db: Session = Depends(get_db)):
 def update_movie(
     movie_id: int,
     movie: Movie,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
 ):
     existing_movie = (
         db.query(MovieDB)
@@ -211,20 +388,20 @@ def update_movie(
         )
 
     duplicate_movie = (
-    db.query(MovieDB)
-    .filter(
-        MovieDB.title.ilike(movie.title.strip()),
-        MovieDB.year == movie.year,
-        MovieDB.id != movie_id
+        db.query(MovieDB)
+        .filter(
+            MovieDB.title.ilike(movie.title.strip()),
+            MovieDB.year == movie.year,
+            MovieDB.id != movie_id
+        )
+        .first()
     )
-    .first()
-)
 
     if duplicate_movie is not None:
-      raise HTTPException(
-        status_code=409,
-        detail="Another movie with this title and year already exists"
-    )
+        raise HTTPException(
+            status_code=409,
+            detail="Another movie with this title and year already exists"
+        )
 
     existing_movie.title = movie.title
     existing_movie.year = movie.year
@@ -234,30 +411,6 @@ def update_movie(
     db.refresh(existing_movie)
 
     return existing_movie
-
-
-# Get movies by release year
-@app.get("/movies/year/{year}", response_model=list[MovieResponse])
-def get_movies_by_year(
-    year: int,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=10, ge=1, le=100),
-    sort_order: str = Query(default="asc", pattern="^(asc|desc)$"),
-    db: Session = Depends(get_db)
-):
-    query = db.query(MovieDB).filter(
-        MovieDB.year == year
-    )
-
-    if sort_order == "desc":
-        query = query.order_by(MovieDB.id.desc())
-    else:
-        query = query.order_by(MovieDB.id.asc())
-
-    movies = query.offset(skip).limit(limit).all()
-
-    return movies
-
 # Get movies by genre
 @app.get("/movies/genre/{genre}", response_model=list[MovieResponse])
 def get_movies_by_genre(
@@ -281,27 +434,13 @@ def get_movies_by_genre(
     return movies
 
 
-# READ: Get one movie by ID
-@app.get("/movies/{movie_id}", response_model=MovieResponse)
-def get_movie(movie_id: int, db: Session = Depends(get_db)):
-    movie = (
-        db.query(MovieDB)
-        .filter(MovieDB.id == movie_id)
-        .first()
-    )
-
-    if movie is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Movie not found"
-        )
-
-    return movie
-
-
 # DELETE: Delete a movie
 @app.delete("/movies/{movie_id}")
-def delete_movie(movie_id: int, db: Session = Depends(get_db)):
+def delete_movie(
+    movie_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     movie = (
         db.query(MovieDB)
         .filter(MovieDB.id == movie_id)
@@ -313,6 +452,7 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
             status_code=404,
             detail="Movie not found"
         )
+
     existing_reviews = (
         db.query(ReviewDB)
         .filter(ReviewDB.movie_id == movie_id)
@@ -329,10 +469,13 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Movie deleted successfully"}
-
 # POST: Create a review
 @app.post("/reviews",status_code=201)
-def create_review(review: Review, db: Session = Depends(get_db)):
+def create_review(
+    review: Review,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     movie = db.query(MovieDB).filter(
         MovieDB.id == review.movie_id
     ).first()
@@ -360,7 +503,8 @@ def get_reviews(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1, le=100),
     sort_order: str = Query(default="asc", pattern="^(asc|desc)$"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
 ):
     query = db.query(ReviewDB)
 
@@ -425,7 +569,11 @@ def update_review(
 
 # DELETE: Delete a review
 @app.delete("/reviews/{review_id}")
-def delete_review(review_id: int, db: Session = Depends(get_db)):
+def delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     review = db.query(ReviewDB).filter(
         ReviewDB.id == review_id
     ).first()

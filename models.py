@@ -20,3 +20,12 @@ class ReviewDB(Base):
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
     rating = Column(Integer, nullable=False)
     comment = Column(String(500), nullable=False)
+
+    # Database model for users
+class UserDB(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)

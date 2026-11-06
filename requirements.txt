@@ -1,9 +1,11 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
-psycopg2-binary
+psycopg[binary]
 pydantic
 pytest
 httpx
 python-dotenv
-psycopg[binary]
+pwdlib[argon2]
+PyJWT
+alembic
